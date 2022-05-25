@@ -1,6 +1,6 @@
 # aws-ipam-monitor-app
 
-## :hammer_and_wrench: Amazon IPAM Overview
+## :globe_with_meridians: Amazon IPAM Overview
 
 [Amazon IPAM](https://docs.aws.amazon.com/vpc/latest/ipam/what-it-is-ipam.html) is a VPC feature that makes it easier for you to plan, track, and monitor IP addresses for your AWS workloads. You can use IPAM's automated workflows to more efficiently manage IP addresses.
 
@@ -14,6 +14,6 @@ You can use IPAM to do the following:
 
 ## Amazon VPC IPAM Examples
 
-These examples provide an introduction to Amazon VPC IPAM and how to integrate it into Lambda, SNS, CloudWatch, and other AWS services.
+These examples provide an introduction to Amazon VPC IPAM and demonstrate how to integrate it into Lambda, SNS, CloudWatch, and other AWS services.
 
-- [IPAM Monitor](aws-monitor-ipam-app.py) can be used to monitor IPAM CIDR resources, evaluate their IP usage, and then take downstream action.  It can be run in CLI or within Lambda and integrates with other AWS services such as publishing alerts to SNS topics, sending metrics to CloudWatch, or passing information to other Lambda functions in a StepFunction workflow.
+- [IPAM Monitor](aws-ipam-monitor-app.py) can be used to monitor IPAM CIDR resources, evaluate their IP usage, and then take downstream action if the usage exceeds a threshold.  It consists of a set of functions can be run in CLI mode, referenced as part of a larger program or within a standalone Lambda scheduled and integrates with other AWS services such as publishing alerts to SNS topics, sending metrics to CloudWatch, or passing information to other Lambda functions in a StepFunction workflow.
