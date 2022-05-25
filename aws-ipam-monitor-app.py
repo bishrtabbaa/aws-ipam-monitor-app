@@ -132,7 +132,7 @@ def format_ipam_cidr_resource_message(ipamResourceCidrs):
 
     if (ipamResourceCidrs != None):
         for ipamResourceCidr in ipamResourceCidrs:
-            ipam_cidr_resource_message += ipamResourceCidr['ResourceId'] + ':' + ipamResourceCidr['ResourceOwnerId'] + 100 * ipamResourceCidr['IpUsage'] + ','
+            ipam_cidr_resource_message += ipamResourceCidr['ResourceId'] + ':' + ipamResourceCidr['ResourceOwnerId'] + ":" + str(100 * ipamResourceCidr['IpUsage']) + ','
 
     return ipam_cidr_resource_message
 
