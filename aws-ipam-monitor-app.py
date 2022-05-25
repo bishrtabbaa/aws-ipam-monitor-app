@@ -132,7 +132,7 @@ def format_ipam_cidr_resource_message(ipamResourceCidrs):
 
     if (ipamResourceCidrs != None):
         for ipamResourceCidr in ipamResourceCidrs:
-            ipam_cidr_resource_message += ipamResourceCidr['ResourceId'] + ':' + ipamResourceCidr['ResourceOwnerId'] + ','
+            ipam_cidr_resource_message += ipamResourceCidr['ResourceId'] + ':' + ipamResourceCidr['ResourceOwnerId'] + 100 * ipamResourceCidr['IpUsage'] + ','
 
     return ipam_cidr_resource_message
 
@@ -140,6 +140,11 @@ def format_ipam_cidr_resource_message(ipamResourceCidrs):
 # IPAM_USAGE_THRESHOLD : FLOAT
 # IPAM_SCOPE_TYPE : public | private
 # IPAM_RESOURCE_TYPE : vpc | subnet | eip | public-ipv4-pool | ipv6-pool
+# IPAM_SNS_TOPIC
+# IPAM_SNS_SUBJECT
+# IPAM_CLOUDWATCH_ENABLED
+# IPAM_CLOUDWATCH_NAMESPACE
+# IPAM_CLOUDWATCH_METRIC
 def lambda_handler(event, context):
     logger.debug('Getting OS environment variables.')
 
@@ -185,12 +190,13 @@ def lambda_handler(event, context):
 
     try:
         ipamSnsTopic = os.environ['IPAM_SNS_TOPIC']
+        ipamSnsSubject = os.environ['IPAM_SNS_SUBJECT']
 
         if (ipamSnsTopic != None):
-            send_sns_message(ipamSnsTopic, myResponseStatusMessage)
+            send_sns_message(ipamSnsTopic, myResponseStatusMessage, ipamSnsSubject)
 
     except KeyError:
-        logger.info('Define Lambda Environment Variable: IPAM_SNS_TOPIC')
+        logger.info('Define Lambda Environment Variable: IPAM_SNS_TOPIC, IPAM_SNS_SUBJECT')
         # report, warn, and then ignore
 
     # CLOUDWATCH
@@ -226,6 +232,7 @@ if __name__ == '__main__':
     myIpamScope = DEFAULT_IPAM_SCOPE_TYPE
     myIpamResourceType = DEFAULT_IPAM_RESOURCE_TYPE
     myIpamSnsTopic = None
+    myIpamSnsSubject = DEFAULT_IPAM_SNS_SUBJECT
     myIpamIpUsageThreshold = 20.0
 
     args = sys.argv[1:]
@@ -236,6 +243,8 @@ if __name__ == '__main__':
             myIpamResourceType = args[i+1]
         elif (args[i] == "--sns"):
             myIpamSnsTopic = args[i+1]
+        elif (args[i] == "--subject"):
+            myIpamSnsSubject = args[i+1]
         elif (args[i] == "--threshold"):
             myIpamIpUsageThreshold = float(args[i+1])
 
@@ -254,7 +263,7 @@ if __name__ == '__main__':
 
     # SNS
     if (myIpamSnsTopic != None):
-        send_sns_message(myIpamSnsTopic, myIpamResourceCidrMessage)
+        send_sns_message(myIpamSnsTopic, myIpamResourceCidrMessage, myIpamSnsSubject)
 
     # CLOUDWATCH
     send_cloudwatch_metric(myIpamResourceCidrs)
