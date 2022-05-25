@@ -31,6 +31,7 @@ import json
 import os
 import logging
 import time
+import sys
 
 # CONSTANTS
 PAGE_SIZE_MIN = 100
@@ -101,16 +102,16 @@ def send_sns_message(snsTopic, snsMessage, snsSubject=DEFAULT_IPAM_SNS_SUBJECT):
 
     return sns_response
 
-def format_cloudwatch_metric_data_point(ipamResourceCidr):
+def format_cloudwatch_metric_data_point(ipamResourceCidr, cwMetricName=DEFAULT_IPAM_CLOUDWATCH_METRIC):
     cw_metric_data_point = {}
-    cw_metric_data_point['MetricName'] = DEFAULT_IPAM_CLOUDWATCH_METRIC
+    cw_metric_data_point['MetricName'] = cwMetricName
     cw_metric_data_point['Timestamp'] = time.time()
     cw_metric_data_point['Value'] = 100 * ipamResourceCidr['IpUsage']
     cw_metric_data_point['Dimensions'] = [ { 'Name': 'ResourceId', 'Value': ipamResourceCidr['ResourceId']}]
 
     return cw_metric_data_point
 
-def send_cloudwatch_metric(ipamResourceCidrs):
+def send_cloudwatch_metric(ipamResourceCidrs, cwNamespace=DEFAULT_IPAM_CLOUDWATCH_NAMESPACE, cwMetric=DEFAULT_IPAM_CLOUDWATCH_METRIC):
 
     logger.info("Sending CloudWatch metric data for IPAM CIDR resources")
 
@@ -120,11 +121,11 @@ def send_cloudwatch_metric(ipamResourceCidrs):
     cw_metric_data_points = []
 
     for ipamResourceCidr in ipamResourceCidrs:
-        cw_metric_data_point = format_cloudwatch_metric_data_point(ipamResourceCidr)
+        cw_metric_data_point = format_cloudwatch_metric_data_point(ipamResourceCidr, cwMetricName=cwMetric)
         cw_metric_data_points.append(cw_metric_data_point)
 
     # cloudwatch.put_metric_data
-    cw.put_metric_data(Namespace=DEFAULT_IPAM_CLOUDWATCH_NAMESPACE, MetricData=cw_metric_data_points)
+    cw.put_metric_data(Namespace=cwNamespace, MetricData=cw_metric_data_points)
 
 def format_ipam_cidr_resource_message(ipamResourceCidrs):
     ipam_cidr_resource_message = ''
@@ -179,7 +180,7 @@ def lambda_handler(event, context):
     myResponseStatusMessage = format_ipam_cidr_resource_message(myIpamResourceCidrs)
     logger.debug(myResponseStatusMessage)
 
-    # TODO ... action ... SNS, other Lambdas in a StepFunctionWorkflow
+    # SNS
     ipamSnsTopic = None
 
     try:
@@ -192,15 +193,17 @@ def lambda_handler(event, context):
         logger.info('Define Lambda Environment Variable: IPAM_SNS_TOPIC')
         # report, warn, and then ignore
 
-    # TODO ... action ... CloudWatch metrics
+    # CLOUDWATCH
     try:
         ipamCloudWatcEnabled = bool(os.environ['IPAM_CLOUDWATCH_ENABLED'])
+        ipamCloudWatchNamespace = os.environ['IPAM_CLOUDWATCH_NAMESPACE']
+        ipamCloudWatchMetric = os.environ['IPAM_CLOUDWATCH_METRIC']
 
         if (ipamCloudWatcEnabled):
-            send_cloudwatch_metric(myIpamResourceCidrs)
+            send_cloudwatch_metric(myIpamResourceCidrs, ipamCloudWatchNamespace, ipamCloudWatchMetric)
 
     except KeyError:
-        logger.info('Define Lambda Environment Variable: IPAM_CLOUDWATCH_ENABLED')
+        logger.info('Define Lambda Environment Variable: IPAM_CLOUDWATCH_ENABLED, IPAM_CLOUDWATCH_NAMESPACE, IPAM_CLOUDWATCH_METRIC')
         # report, warn, and then ignore
 
     return {
@@ -216,26 +219,42 @@ def lambda_handler(event, context):
 # TEST
 # main()
 ##############################  
-logger.setLevel(logging.INFO)
 
-# init
-myIpamResourceCidrs = get_my_ipam_resource_cidrs(20.0, "private", "vpc")
-myIpamResourceCidrMessage = ''
-ipamSnsTopic = 'arn:aws:sns:us-east-2:645411899653:my-aws-training-email-bishrt'
+if __name__ == '__main__':
+    logger.setLevel(logging.INFO)
 
-# create message
-myIpamResourceCidrMessage = format_ipam_cidr_resource_message(myIpamResourceCidrs)
+    myIpamScope = DEFAULT_IPAM_SCOPE_TYPE
+    myIpamResourceType = DEFAULT_IPAM_RESOURCE_TYPE
+    myIpamSnsTopic = None
+    myIpamIpUsageThreshold = 20.0
 
-# DEBUG.LOG
-for resourceCidr in myIpamResourceCidrs:
-    logger.info(resourceCidr)
+    args = sys.argv[1:]
+    for i in range(1,len(args)):
+        if (args[i] == "--scope"):
+            myIpamScope = args[i+1]
+        elif (args[i] == "--type"):
+            myIpamResourceType = args[i+1]
+        elif (args[i] == "--sns"):
+            myIpamSnsTopic = args[i+1]
+        elif (args[i] == "--threshold"):
+            myIpamIpUsageThreshold = float(args[i+1])
 
-logger.info(myIpamResourceCidrMessage)
+    # init
+    # 'arn:aws:sns:us-east-2:645411899653:my-aws-training-email-bishrt'
+    myIpamResourceCidrs = get_my_ipam_resource_cidrs(myIpamIpUsageThreshold, myIpamScope, myIpamResourceType)
 
-# SNS
-# send_sns_message(ipamSnsTopic, myIpamResourceCidrMessage)
+    # create message
+    myIpamResourceCidrMessage = format_ipam_cidr_resource_message(myIpamResourceCidrs)
 
-# CLOUDWATCH
-# send_cloudwatch_metric(myIpamResourceCidrs)
+    # DEBUG.LOG
+    for resourceCidr in myIpamResourceCidrs:
+        logger.info(resourceCidr)
 
-# TODO ... ACTION ... LAMBDA / STEPFUNCTION
+    logger.info(myIpamResourceCidrMessage)
+
+    # SNS
+    if (myIpamSnsTopic != None):
+        send_sns_message(myIpamSnsTopic, myIpamResourceCidrMessage)
+
+    # CLOUDWATCH
+    send_cloudwatch_metric(myIpamResourceCidrs)
