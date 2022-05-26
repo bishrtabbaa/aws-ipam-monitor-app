@@ -224,6 +224,7 @@ def lambda_handler(event, context):
 ##############################    
 # TEST
 # main()
+# aws-ipam-monitor-app.py --scope private --type vpc --snssubject "My IPAM Email Alert" --snstopic 'arn:aws:sns:us-east-2:645411899653:my-aws-training-email-bishrt' --threshold 80.0
 ##############################  
 
 if __name__ == '__main__':
@@ -241,9 +242,9 @@ if __name__ == '__main__':
             myIpamScope = args[i+1]
         elif (args[i] == "--type"):
             myIpamResourceType = args[i+1]
-        elif (args[i] == "--sns"):
+        elif (args[i] == "--snstopic"):
             myIpamSnsTopic = args[i+1]
-        elif (args[i] == "--subject"):
+        elif (args[i] == "--snssubject"):
             myIpamSnsSubject = args[i+1]
         elif (args[i] == "--threshold"):
             myIpamIpUsageThreshold = float(args[i+1])
