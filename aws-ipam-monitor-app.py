@@ -15,17 +15,17 @@ limitations under the License.
 # file: aws-ipam-monitor-app.py
 # author: bishrt@amazon.com
 # date: 5-24-2022
-# CLI reference: https://docs.aws.amazon.com/cli/latest/reference/ec2/get-ipam-resource-cidrs.html
-# Boto3 reference: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html
+# AWS CLI reference: https://docs.aws.amazon.com/cli/latest/reference/ec2/get-ipam-resource-cidrs.html
+# AWS Boto3 SDK reference: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html
 # Lambda Best Practices reference: https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html
 # Lambda Developer reference: https://aws.amazon.com/blogs/architecture/best-practices-for-developing-on-aws-lambda/
 # Lambda Python reference: https://docs.aws.amazon.com/lambda/latest/dg/lambda-python.html
 # Lambda Python example https://github.com/awsdocs/aws-lambda-developer-guide/tree/main/sample-apps/blank-python
+# Python reference: https://peps.python.org/pep-0008/
 # requirements Python3.6+ (3.6-3.9)
 # pip install --upgrade boto3
 
 # IMPORTS
-from pickle import TRUE
 import boto3
 import json
 import os
@@ -67,7 +67,7 @@ def get_my_ipam_resource_cidrs(ipamUsageThreshold=DEFAULT_IPAM_USAGE_THRESHOLD, 
 
     # get_ipam_scopes from EC2
     scopeResponse = ec2.describe_ipam_scopes(MaxResults=PAGE_SIZE_MIN)
-    if (scopeResponse != None):
+    if (scopeResponse is not None):
         ipamScopes = scopeResponse['IpamScopes']
         for ipamScope in ipamScopes:
             if (ipamScope['IpamScopeType'] == ipamScopeType):
@@ -79,7 +79,7 @@ def get_my_ipam_resource_cidrs(ipamUsageThreshold=DEFAULT_IPAM_USAGE_THRESHOLD, 
     # get_ipam_resource_cidrs from EC2 for specific scope ... results maybe paginated
     resourceCidrResponse = ec2.get_ipam_resource_cidrs(IpamScopeId=myIpamScopeId, ResourceType=ipamResourceType, MaxResults=PAGE_SIZE_MAX)
 
-    if (resourceCidrResponse != None):
+    if (resourceCidrResponse is not None):
         allResourceCidrs = resourceCidrResponse['IpamResourceCidrs']
 
     # evaluate resource CIDR vs. threshold
@@ -103,6 +103,7 @@ def send_sns_message(snsTopic, snsMessage, snsSubject=DEFAULT_IPAM_SNS_SUBJECT):
     return sns_response
 
 def format_cloudwatch_metric_data_point(ipamResourceCidr, cwMetricName=DEFAULT_IPAM_CLOUDWATCH_METRIC):
+    # each CW metric data point has a Name, Value, Timestamp, and Dimensional Index by the ResourceId for uniqueness
     cw_metric_data_point = {}
     cw_metric_data_point['MetricName'] = cwMetricName
     cw_metric_data_point['Timestamp'] = time.time()
@@ -124,13 +125,14 @@ def send_cloudwatch_metric(ipamResourceCidrs, cwNamespace=DEFAULT_IPAM_CLOUDWATC
         cw_metric_data_point = format_cloudwatch_metric_data_point(ipamResourceCidr, cwMetricName=cwMetric)
         cw_metric_data_points.append(cw_metric_data_point)
 
+    # attach CW NameSpace
     # cloudwatch.put_metric_data
     cw.put_metric_data(Namespace=cwNamespace, MetricData=cw_metric_data_points)
 
 def format_ipam_cidr_resource_message(ipamResourceCidrs):
     ipam_cidr_resource_message = ''
 
-    if (ipamResourceCidrs != None):
+    if (ipamResourceCidrs is not None):
         for ipamResourceCidr in ipamResourceCidrs:
             ipam_cidr_resource_message += ipamResourceCidr['ResourceId'] + ':' + ipamResourceCidr['ResourceOwnerId'] + ":" + str(100 * ipamResourceCidr['IpUsage']) + ','
 
@@ -174,7 +176,7 @@ def lambda_handler(event, context):
 
     # create HTTP response status code and message
     
-    if (myIpamResourceCidrs == None or len(myIpamResourceCidrs) <= 0):
+    if (myIpamResourceCidrs is None or len(myIpamResourceCidrs) <= 0):
         myResponseStatus = 500
         myResponseStatusMessage = "NO_IPAM_RESOURCE_CIDRS"
 
@@ -192,11 +194,11 @@ def lambda_handler(event, context):
         ipamSnsTopic = os.environ['IPAM_SNS_TOPIC']
         ipamSnsSubject = os.environ['IPAM_SNS_SUBJECT']
 
-        if (ipamSnsTopic != None):
+        if (ipamSnsTopic is not None):
             send_sns_message(ipamSnsTopic, myResponseStatusMessage, ipamSnsSubject)
 
     except KeyError:
-        logger.info('Define Lambda Environment Variable: IPAM_SNS_TOPIC, IPAM_SNS_SUBJECT')
+        logger.warn('Define Lambda Environment Variable: IPAM_SNS_TOPIC, IPAM_SNS_SUBJECT')
         # report, warn, and then ignore
 
     # CLOUDWATCH
@@ -209,22 +211,22 @@ def lambda_handler(event, context):
             send_cloudwatch_metric(myIpamResourceCidrs, ipamCloudWatchNamespace, ipamCloudWatchMetric)
 
     except KeyError:
-        logger.info('Define Lambda Environment Variable: IPAM_CLOUDWATCH_ENABLED, IPAM_CLOUDWATCH_NAMESPACE, IPAM_CLOUDWATCH_METRIC')
+        logger.warn('Define Lambda Environment Variable: IPAM_CLOUDWATCH_ENABLED, IPAM_CLOUDWATCH_NAMESPACE, IPAM_CLOUDWATCH_METRIC')
         # report, warn, and then ignore
 
     return {
         "statusCode": myResponseStatus,
         "body": json.dumps({
-            "message": myResponseStatusMessage,
-            "ipamResourceCidrs" : myIpamResourceCidrs
+            "Message": myResponseStatusMessage,
+            "IpamResourceCidrs" : myIpamResourceCidrs
         })
     }
 
 
 ##############################    
-# TEST
+# CLI TEST
 # main()
-# aws-ipam-monitor-app.py --scope private --type vpc --snssubject "My IPAM Email Alert" --snstopic 'arn:aws:sns:us-east-2:645411899653:my-aws-training-email-bishrt' --threshold 80.0
+# ./aws-ipam-monitor-app.py --scope private --type vpc --snssubject "My IPAM Email Alert" --snstopic 'arn:aws:sns:us-east-2:645411899653:my-aws-training-email-bishrt' --threshold 80.0
 ##############################  
 
 if __name__ == '__main__':
@@ -263,7 +265,7 @@ if __name__ == '__main__':
     logger.info(myIpamResourceCidrMessage)
 
     # SNS
-    if (myIpamSnsTopic != None):
+    if (myIpamSnsTopic is not None):
         send_sns_message(myIpamSnsTopic, myIpamResourceCidrMessage, myIpamSnsSubject)
 
     # CLOUDWATCH
