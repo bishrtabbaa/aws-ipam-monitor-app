@@ -202,11 +202,24 @@ def lambda_handler(event, context):
         # report, warn, and then ignore
 
     # CLOUDWATCH
+    ipamCloudWatchNamespace = DEFAULT_IPAM_CLOUDWATCH_NAMESPACE
+    ipamCloudWatchMetric = DEFAULT_IPAM_CLOUDWATCH_METRIC
+
+    try:
+        ipamCloudWatchNamespace = os.environ['IPAM_CLOUDWATCH_NAMESPACE']
+    except KeyError:
+        logger.debug('Define Lambda Environment Variable: IPAM_CLOUDWATCH_NAMESPACE')
+        # ignore
+
+    try:
+        ipamCloudWatchMetric = os.environ['IPAM_CLOUDWATCH_METRIC']
+    except KeyError:
+        # ignore
+        logger.debug('Define Lambda Environment Variable: IPAM_CLOUDWATCH_METRIC')
+
     try:
         ipamCloudWatcEnabled = bool(os.environ['IPAM_CLOUDWATCH_ENABLED'])
-        ipamCloudWatchNamespace = os.environ['IPAM_CLOUDWATCH_NAMESPACE']
-        ipamCloudWatchMetric = os.environ['IPAM_CLOUDWATCH_METRIC']
-
+    
         if (ipamCloudWatcEnabled):
             send_cloudwatch_metric(myIpamResourceCidrs, ipamCloudWatchNamespace, ipamCloudWatchMetric)
 
@@ -226,7 +239,7 @@ def lambda_handler(event, context):
 ##############################    
 # CLI TEST
 # main()
-# ./aws-ipam-monitor-app.py --scope private --type vpc --snssubject "My IPAM Email Alert" --snstopic 'arn:aws:sns:us-east-2:645411899653:my-aws-training-email-bishrt' --threshold 80.0
+# ./aws-ipam-monitor-app.py --scope private --type vpc --snssubject "My IPAM Email Alert" --snstopic 'arn:aws:sns:us-east-2:1111111111:my-aws-sns-topic' --threshold 80.0
 ##############################  
 
 if __name__ == '__main__':
@@ -252,7 +265,6 @@ if __name__ == '__main__':
             myIpamIpUsageThreshold = float(args[i+1])
 
     # init
-    # 'arn:aws:sns:us-east-2:645411899653:my-aws-training-email-bishrt'
     myIpamResourceCidrs = get_my_ipam_resource_cidrs(myIpamIpUsageThreshold, myIpamScope, myIpamResourceType)
 
     # create message
