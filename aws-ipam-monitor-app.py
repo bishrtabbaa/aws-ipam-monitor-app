@@ -90,7 +90,8 @@ def get_my_ipam_resource_cidrs(ipamUsageThreshold=DEFAULT_IPAM_USAGE_THRESHOLD, 
         # multiply by 100 to get percent
         if ((resourceCidr['IpUsage'] * 100.0) > ipamUsageThreshold):
             myResourceCidrs.append(resourceCidr)
-            # calculate cidr IpAddressTotal and IpAddressAvailable ... tested on IPv4 ... TODO handle arithmetic and string exceptions
+            # calculate cidr IpAddressTotal and IpAddressAvailable ... tested on IPv4
+            # TODO handle IPv6 and arithmetic/string exceptions
             cidr = resourceCidr['ResourceCidr']
             cidrIpUsage = resourceCidr['IpUsage']
             idxSlash = cidr.index('/')
@@ -154,11 +155,11 @@ def format_ipam_cidr_resource_message(ipamResourceCidrs):
 
     if (ipamResourceCidrs is not None):
         for ipamResourceCidr in ipamResourceCidrs:
-            ipam_cidr_resource_message += ipamResourceCidr['ResourceId'] + ':' 
-            ipam_cidr_resource_message += ipamResourceCidr['ResourceOwnerId'] + ":" 
-            ipam_cidr_resource_message += str(100 * ipamResourceCidr['IpUsage']) + ":"
-            ipam_cidr_resource_message += str(ipamResourceCidr['IpAddressAvailable']) + ":"
-            ipam_cidr_resource_message += str(ipamResourceCidr['IpAddressTotal'])
+            ipam_cidr_resource_message += ipamResourceCidr['ResourceId'] + ';' 
+            ipam_cidr_resource_message += ipamResourceCidr['ResourceOwnerId'] + ";" 
+            ipam_cidr_resource_message += str(100 * ipamResourceCidr['IpUsage']) + ";"
+            ipam_cidr_resource_message += str(ipamResourceCidr['IpAddressTotal']) + ";"
+            ipam_cidr_resource_message += str(ipamResourceCidr['IpAddressAvailable'])
             ipam_cidr_resource_message += ','
 
     return ipam_cidr_resource_message
