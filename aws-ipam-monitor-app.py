@@ -32,6 +32,7 @@ import os
 import logging
 import time
 import sys
+import math
 
 # CONSTANTS
 PAGE_SIZE_MIN = 100
@@ -40,7 +41,9 @@ DEFAULT_IPAM_RESOURCE_TYPE = "subnet"
 DEFAULT_IPAM_SCOPE_TYPE = "private"
 DEFAULT_IPAM_USAGE_THRESHOLD = 80.0
 DEFAULT_IPAM_CLOUDWATCH_NAMESPACE = "CUSTOM/IPAM"
-DEFAULT_IPAM_CLOUDWATCH_METRIC = "PercentAssigned"
+DEFAULT_IPAM_CLOUDWATCH_METRIC_PERCENTASSIGNED = "PercentAssigned"
+DEFAULT_IPAM_CLOUDWATCH_METRIC_IPADDRESSAVAILABLE = "IpAddressAvailable"
+DEFAULT_IPAM_CLOUDWATCH_METRIC_IPADDRESSTOTAL = "IpAddressTotal"
 DEFAULT_IPAM_SNS_SUBJECT = 'IPAM Usage Alert'
 
 # LOGGER
@@ -87,6 +90,15 @@ def get_my_ipam_resource_cidrs(ipamUsageThreshold=DEFAULT_IPAM_USAGE_THRESHOLD, 
         # multiply by 100 to get percent
         if ((resourceCidr['IpUsage'] * 100.0) > ipamUsageThreshold):
             myResourceCidrs.append(resourceCidr)
+            # calculate cidr IpAddressTotal and IpAddressAvailable ... tested on IPv4 ... TODO handle arithmetic and string exceptions
+            cidr = resourceCidr['ResourceCidr']
+            cidrIpUsage = resourceCidr['IpUsage']
+            idxSlash = cidr.index('/')
+            cidrIpSize = int(cidr[idxSlash+1:])
+            cidrIpAddressTotal = math.pow(2,(32-cidrIpSize))
+            cidrIpAddressAvailable = (cidrIpAddressTotal * (1-cidrIpUsage))
+            resourceCidr['IpAddressTotal'] = cidrIpAddressTotal
+            resourceCidr['IpAddressAvailable'] = cidrIpAddressAvailable
     
     return myResourceCidrs
 
@@ -102,17 +114,17 @@ def send_sns_message(snsTopic, snsMessage, snsSubject=DEFAULT_IPAM_SNS_SUBJECT):
 
     return sns_response
 
-def format_cloudwatch_metric_data_point(ipamResourceCidr, cwMetricName=DEFAULT_IPAM_CLOUDWATCH_METRIC):
+def format_cloudwatch_metric_data_point(ipamResourceCidr, cwMetricName, cwMetricValue):
     # each CW metric data point has a Name, Value, Timestamp, and Dimensional Index by the ResourceId for uniqueness
     cw_metric_data_point = {}
     cw_metric_data_point['MetricName'] = cwMetricName
+    cw_metric_data_point['Value'] = cwMetricValue
     cw_metric_data_point['Timestamp'] = time.time()
-    cw_metric_data_point['Value'] = 100 * ipamResourceCidr['IpUsage']
     cw_metric_data_point['Dimensions'] = [ { 'Name': 'ResourceId', 'Value': ipamResourceCidr['ResourceId']}]
 
     return cw_metric_data_point
 
-def send_cloudwatch_metric(ipamResourceCidrs, cwNamespace=DEFAULT_IPAM_CLOUDWATCH_NAMESPACE, cwMetric=DEFAULT_IPAM_CLOUDWATCH_METRIC):
+def send_cloudwatch_metric(ipamResourceCidrs, cwNamespace=DEFAULT_IPAM_CLOUDWATCH_NAMESPACE):
 
     logger.info("Sending CloudWatch metric data for IPAM CIDR resources")
 
@@ -122,8 +134,16 @@ def send_cloudwatch_metric(ipamResourceCidrs, cwNamespace=DEFAULT_IPAM_CLOUDWATC
     cw_metric_data_points = []
 
     for ipamResourceCidr in ipamResourceCidrs:
-        cw_metric_data_point = format_cloudwatch_metric_data_point(ipamResourceCidr, cwMetricName=cwMetric)
-        cw_metric_data_points.append(cw_metric_data_point)
+        # PercentAssigned ... IpUsage 
+        cidrIpUsage = 100 * ipamResourceCidr['IpUsage']
+        cw_metric_data_point_ipusage = format_cloudwatch_metric_data_point(ipamResourceCidr, DEFAULT_IPAM_CLOUDWATCH_METRIC_PERCENTASSIGNED, cidrIpUsage)
+        cw_metric_data_points.append(cw_metric_data_point_ipusage)
+        # IpAddressTotal
+        cw_metric_data_point_iptotal = format_cloudwatch_metric_data_point(ipamResourceCidr, DEFAULT_IPAM_CLOUDWATCH_METRIC_IPADDRESSTOTAL, ipamResourceCidr['IpAddressTotal'])
+        cw_metric_data_points.append(cw_metric_data_point_iptotal)
+        # IpAddressAvailable
+        cw_metric_data_point_ipavailable = format_cloudwatch_metric_data_point(ipamResourceCidr, DEFAULT_IPAM_CLOUDWATCH_METRIC_IPADDRESSAVAILABLE, ipamResourceCidr['IpAddressAvailable'])
+        cw_metric_data_points.append(cw_metric_data_point_ipavailable)
 
     # attach CW NameSpace
     # cloudwatch.put_metric_data
@@ -134,7 +154,12 @@ def format_ipam_cidr_resource_message(ipamResourceCidrs):
 
     if (ipamResourceCidrs is not None):
         for ipamResourceCidr in ipamResourceCidrs:
-            ipam_cidr_resource_message += ipamResourceCidr['ResourceId'] + ':' + ipamResourceCidr['ResourceOwnerId'] + ":" + str(100 * ipamResourceCidr['IpUsage']) + ','
+            ipam_cidr_resource_message += ipamResourceCidr['ResourceId'] + ':' 
+            ipam_cidr_resource_message += ipamResourceCidr['ResourceOwnerId'] + ":" 
+            ipam_cidr_resource_message += str(100 * ipamResourceCidr['IpUsage']) + ":"
+            ipam_cidr_resource_message += str(ipamResourceCidr['IpAddressAvailable']) + ":"
+            ipam_cidr_resource_message += str(ipamResourceCidr['IpAddressTotal'])
+            ipam_cidr_resource_message += ','
 
     return ipam_cidr_resource_message
 
@@ -203,7 +228,6 @@ def lambda_handler(event, context):
 
     # CLOUDWATCH
     ipamCloudWatchNamespace = DEFAULT_IPAM_CLOUDWATCH_NAMESPACE
-    ipamCloudWatchMetric = DEFAULT_IPAM_CLOUDWATCH_METRIC
 
     try:
         ipamCloudWatchNamespace = os.environ['IPAM_CLOUDWATCH_NAMESPACE']
@@ -221,10 +245,10 @@ def lambda_handler(event, context):
         ipamCloudWatcEnabled = bool(os.environ['IPAM_CLOUDWATCH_ENABLED'])
     
         if (ipamCloudWatcEnabled):
-            send_cloudwatch_metric(myIpamResourceCidrs, ipamCloudWatchNamespace, ipamCloudWatchMetric)
+            send_cloudwatch_metric(myIpamResourceCidrs, ipamCloudWatchNamespace)
 
     except KeyError:
-        logger.warn('Define Lambda Environment Variable: IPAM_CLOUDWATCH_ENABLED, IPAM_CLOUDWATCH_NAMESPACE, IPAM_CLOUDWATCH_METRIC')
+        logger.warn('Define Lambda Environment Variable: IPAM_CLOUDWATCH_ENABLED, IPAM_CLOUDWATCH_NAMESPACE')
         # report, warn, and then ignore
 
     return {
