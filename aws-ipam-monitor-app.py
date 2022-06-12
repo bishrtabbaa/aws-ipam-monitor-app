@@ -45,6 +45,7 @@ DEFAULT_IPAM_CLOUDWATCH_METRIC_PERCENTASSIGNED = "PercentAssigned"
 DEFAULT_IPAM_CLOUDWATCH_METRIC_IPADDRESSAVAILABLE = "IpAddressAvailable"
 DEFAULT_IPAM_CLOUDWATCH_METRIC_IPADDRESSTOTAL = "IpAddressTotal"
 DEFAULT_IPAM_SNS_SUBJECT = 'IPAM Usage Alert'
+DEFAULT_IPAM_RESOURCE_TYPES =[ "vpc", "subnet"]
 
 # LOGGER
 logger = logging.getLogger()
@@ -77,13 +78,19 @@ def get_my_ipam_resource_cidrs(ipamUsageThreshold=DEFAULT_IPAM_USAGE_THRESHOLD, 
                 myIpamScopeId = ipamScope['IpamScopeId']
 
     # get_ipam_resource_cidrs
-    logger.debug('Getting IPAM resource CIDRS')
+    logger.info('Getting IPAM resource CIDRS: ' + ipamResourceType)
 
     # get_ipam_resource_cidrs from EC2 for specific scope ... results maybe paginated
-    resourceCidrResponse = ec2.get_ipam_resource_cidrs(IpamScopeId=myIpamScopeId, ResourceType=ipamResourceType, MaxResults=PAGE_SIZE_MAX)
-
-    if (resourceCidrResponse is not None):
-        allResourceCidrs = resourceCidrResponse['IpamResourceCidrs']
+    if (ipamResourceType == None or ipamResourceType == "*" or ipamResourceType == ""):
+        # loop over defaults
+        for defIpamResourceType in DEFAULT_IPAM_RESOURCE_TYPES:
+            resourceCidrResponse = ec2.get_ipam_resource_cidrs(IpamScopeId=myIpamScopeId, ResourceType=defIpamResourceType, MaxResults=PAGE_SIZE_MAX)
+            if (resourceCidrResponse is not None):
+                allResourceCidrs += resourceCidrResponse['IpamResourceCidrs']            
+    else:
+        resourceCidrResponse = ec2.get_ipam_resource_cidrs(IpamScopeId=myIpamScopeId, ResourceType=ipamResourceType, MaxResults=PAGE_SIZE_MAX)
+        if (resourceCidrResponse is not None):
+            allResourceCidrs += resourceCidrResponse['IpamResourceCidrs']
 
     # evaluate resource CIDR vs. threshold
     for resourceCidr in allResourceCidrs:
@@ -148,7 +155,8 @@ def send_cloudwatch_metric(ipamResourceCidrs, cwNamespace=DEFAULT_IPAM_CLOUDWATC
 
     # attach CW NameSpace
     # cloudwatch.put_metric_data
-    cw.put_metric_data(Namespace=cwNamespace, MetricData=cw_metric_data_points)
+    if (len(cw_metric_data_points) > 0):
+        cw.put_metric_data(Namespace=cwNamespace, MetricData=cw_metric_data_points)
 
 def format_ipam_cidr_resource_message(ipamResourceCidrs):
     ipam_cidr_resource_message = ''
@@ -203,7 +211,7 @@ def lambda_handler(event, context):
     # create HTTP response status code and message
     
     if (myIpamResourceCidrs is None or len(myIpamResourceCidrs) <= 0):
-        myResponseStatus = 500
+        myResponseStatus = 200
         myResponseStatusMessage = "NO_IPAM_RESOURCE_CIDRS"
 
     # DEBUG.LOG
@@ -220,7 +228,7 @@ def lambda_handler(event, context):
         ipamSnsTopic = os.environ['IPAM_SNS_TOPIC']
         ipamSnsSubject = os.environ['IPAM_SNS_SUBJECT']
 
-        if (ipamSnsTopic is not None):
+        if (ipamSnsTopic is not None and ipamSnsSubject != ''):
             send_sns_message(ipamSnsTopic, myResponseStatusMessage, ipamSnsSubject)
 
     except KeyError:
@@ -237,13 +245,7 @@ def lambda_handler(event, context):
         # ignore
 
     try:
-        ipamCloudWatchMetric = os.environ['IPAM_CLOUDWATCH_METRIC']
-    except KeyError:
-        # ignore
-        logger.debug('Define Lambda Environment Variable: IPAM_CLOUDWATCH_METRIC')
-
-    try:
-        ipamCloudWatcEnabled = bool(os.environ['IPAM_CLOUDWATCH_ENABLED'])
+        ipamCloudWatcEnabled = str2bool(os.environ['IPAM_CLOUDWATCH_ENABLED'])
     
         if (ipamCloudWatcEnabled):
             send_cloudwatch_metric(myIpamResourceCidrs, ipamCloudWatchNamespace)
@@ -260,6 +262,11 @@ def lambda_handler(event, context):
         })
     }
 
+def str2bool(s):
+    if (s != None):
+        return s.lower() in ("yes", "y", "true", "t", "1")
+    else:
+        return False
 
 ##############################    
 # CLI TEST
@@ -277,17 +284,15 @@ if __name__ == '__main__':
     myIpamIpUsageThreshold = 20.0
 
     args = sys.argv[1:]
-    for i in range(1,len(args)):
+    for i in range(0,len(args)):
         if (args[i] == "--scope"):
             myIpamScope = args[i+1]
         elif (args[i] == "--type"):
             myIpamResourceType = args[i+1]
-        elif (args[i] == "--snstopic"):
-            myIpamSnsTopic = args[i+1]
-        elif (args[i] == "--snssubject"):
-            myIpamSnsSubject = args[i+1]
         elif (args[i] == "--threshold"):
             myIpamIpUsageThreshold = float(args[i+1])
+        elif (args[i] == "--topic"):
+            myIpamSnsTopic = args[i+1]
 
     # init
     myIpamResourceCidrs = get_my_ipam_resource_cidrs(myIpamIpUsageThreshold, myIpamScope, myIpamResourceType)
