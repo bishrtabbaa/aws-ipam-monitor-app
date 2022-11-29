@@ -66,16 +66,18 @@ Stack Name [sam-app]: sam-ipam-monitor-app
 
 Waiting for changeset to be created..
 CloudFormation stack changeset
-------------------------------------------------------------------------------------------------------------------------------------------------------------------Operation   LogicalResourceId                              ResourceType                                 Replacement                                  
-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------
+Operation   LogicalResourceId                              ResourceType                                 Replacement                                  
+--------------------------------------------------------------------------------------------------------------------
 + Add IpamMonitorEventSchedulePermission             AWS::Lambda::Permission                        N/A                                          
 + Add IpamMonitorEventScheduleRule                   AWS::Events::Rule                              N/A                                          
 + Add IpamMonitorFunctionRole                        AWS::IAM::Role                                 N/A                                          
 + Add IpamMonitorFunction                            AWS::Lambda::Function                          N/A                                          
 + Add IpamMonitorLambdaExecutionRole                 AWS::IAM::Role                                 N/A                                          
 + Add IpamMonitorPolicy                              AWS::IAM::Policy                               N/A                                          
-------------------------------------------------------------------------------------------------------------------------------------------------------------------
-Changeset created successfully. arn:aws:cloudformation:us-east-2:645411899653:changeSet/samcli-deploy1669736569/53cfb356-19ba-4af7-837b-cd7673d9f47e
+--------------------------------------------------------------------------------------------------------------------
+Changeset created successfully. 
+arn:aws:cloudformation:us-east-2:645411899653:changeSet/samcli-deploy1669736569/53cfb356-19ba-4af7-837b-cd7673d9f47e
 
 Previewing CloudFormation changeset before deployment
 ======================================================
@@ -83,10 +85,10 @@ Deploy this changeset? [y/N]: y
 
 ...
 
-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------
 CloudFormation outputs from deployed stack
-------------------------------------------------------------------------------------------------------------------------------------------------------------------
-Outputs                                                                                                                                                               ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------
+Outputs                                                                                                                                                           ---------------------------------------------------------------------------------------------------------------------
 Key                 IpamMonitorFunctionArn                                                                                                                
 Description         IPAM Monitor Lambda Function ARN                                                                                                             
 Value               arn:aws:lambda:us-east-2:645411899653:function:sam-ipam-monitor-app-IpamMonitorFunction-1dKP6LEmaw70                         
@@ -94,11 +96,12 @@ Value               arn:aws:lambda:us-east-2:645411899653:function:sam-ipam-moni
 Key                 IpamMonitorFunctionIamRoleArn                                                                                                     
 Description         Implicit IAM Role created for IPAM Monitor function                                                                                              
 Value               arn:aws:iam::645411899653:role/IpamMonitorLambdaExecutionRole                                                                                
----------------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------
 Successfully created/updated stack - sam-ipam-monitor-app in us-east-2
 ```
 
 ### Future Work
 
 * Integrate IPAM Cloud Watch metrics with external 3rd parties
-* Add additional IPAM metrics
+* Demonstrate value with Slack/Teams notifications.
+* Expand IPAM metrics
