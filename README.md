@@ -88,7 +88,6 @@ Deploy this changeset? [y/N]: y
 ---------------------------------------------------------------------------------------------------------------------
 CloudFormation outputs from deployed stack
 ---------------------------------------------------------------------------------------------------------------------
-Outputs                                                                                                                                                           ---------------------------------------------------------------------------------------------------------------------
 Key                 IpamMonitorFunctionArn                                                                                                                
 Description         IPAM Monitor Lambda Function ARN                                                                                                             
 Value               arn:aws:lambda:us-east-2:645411899653:function:sam-ipam-monitor-app-IpamMonitorFunction-1dKP6LEmaw70                         
