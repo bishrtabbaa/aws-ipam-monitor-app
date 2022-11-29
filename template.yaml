@@ -1,0 +1,120 @@
+# file: template.yaml
+# author: bishrt@amazon.com
+# date: 11-29-2022
+
+# This is the SAM template that represents the architecture of your serverless application
+# https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-template-basics.html
+
+# The AWSTemplateFormatVersion identifies the capabilities of the template
+# https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/format-version-structure.html
+AWSTemplateFormatVersion: 2010-09-09
+Description: aws-ipam-monitor
+
+# Transform section specifies one or more macros that AWS CloudFormation uses to process your template
+# https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/transform-section-structure.html
+Transform:
+- AWS::Serverless-2016-10-31
+
+# Resources declares the AWS resources that you want to include in the stack
+# https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
+Resources:  
+  # This is the Lambda function definition associated with the source code: sqs-payload-logger.js. For all available properties, see
+  # https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+  IpamMonitorFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      PackageType: Image
+      Architectures:
+        - x86_64
+    Metadata:
+      Dockerfile: Dockerfile
+      DockerContext: ./src
+      DockerTag: python3.9-v1
+      MemorySize: 256
+      Environment:
+        Variables:
+          IPAM_USAGE_THRESHOLD: 80.0
+          IPAM_SCOPE_TYPE: private
+          IPAM_RESOURCE_TYPE: '*'
+          IPAM_SNS_TOPIC: ''
+          IPAM_CLOUDWATCH_NAMESPACE: CUSTOM/IPAM
+          IPAM_CLOUDWATCH_ENABLED: true
+      Role: !GetAtt IpamMonitorLambdaExecutionRole.Arn
+  #=========================================================
+  # EVENT BRIDGE SCHEDULE RULE
+  #=========================================================
+  IpamMonitorEventScheduleRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Scheduled EventBridge Rule for Lambda cost optimization function
+      ScheduleExpression: cron(0 23 * * ? *)
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt IpamMonitorFunction.Arn
+          Id: IpamMonitorEventScheduleRule
+  
+  IpamMonitorEventSchedulePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt IpamMonitorEventScheduleRule.Arn
+      FunctionName: !GetAtt IpamMonitorFunction.Arn
+  #=========================================================
+  # LAMBDA IAM ROLE AND POLICY
+  #=========================================================
+  IpamMonitorLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: IpamMonitorLambdaExecutionRole
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+
+  IpamMonitorPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: IpamMonitorPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - "ec2:DescribeIpamScopes"
+              - "ec2:DescribeAddress"
+              - "ec2:DescribeByoipCidrs"
+              - "ec2:DescribeIpv6Pools"
+              - "ec2:DescribeIpv4Pools"
+              - "ec2:DescribeSubnets"
+              - "ec2:DescribeVpcs"
+              - "ec2:DescribeInstances"
+              - "ec2:GetIpamResourceCidrs"
+              - "organizations:DescribeAccount"
+              - "organizations:DescribeOrganization"
+              - "organizations:ListAccounts"
+              - "organizations:ListDelegatedAdministrators"
+              - "logs:CreateLogGroup"
+              - "logs:CreateLogStream"
+              - "logs:PutLogEvents"
+              - "cloudwatch:ListMetrics"
+              - "cloudwatch:GetMetricData"
+              - "cloudwatch:PutMetricData"
+              - "sns:Publish"
+            Resource: '*'
+      Roles:
+        - !Ref IpamMonitorLambdaExecutionRole
+
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  IpamMonitorFunctionArn:
+    Description: "IPAM Monitor Lambda Function ARN"
+    Value: !GetAtt IpamMonitorFunction.Arn
+  IpamMonitorFunctionIamRoleArn:
+    Description: "Implicit IAM Role created for IPAM Monitor function"
+    Value: !GetAtt IpamMonitorLambdaExecutionRole.Arn
