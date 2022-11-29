@@ -81,7 +81,7 @@ def get_my_ipam_resource_cidrs(ipamUsageThreshold=DEFAULT_IPAM_USAGE_THRESHOLD, 
                 myIpamScopeId = ipamScope['IpamScopeId']
 
     # get_ipam_resource_cidrs
-    logger.info('Getting IPAM resource CIDR = ' + ipamResourceType)
+    logger.info('Getting IPAM CIDR Resource types = ' + ipamResourceType)
 
     # get_ipam_resource_cidrs from EC2 for specific scope ... results maybe paginated
     if (ipamResourceType == None or ipamResourceType == "*" or ipamResourceType == ""):
@@ -95,14 +95,14 @@ def get_my_ipam_resource_cidrs(ipamUsageThreshold=DEFAULT_IPAM_USAGE_THRESHOLD, 
         if (resourceCidrResponse is not None):
             allResourceCidrs += resourceCidrResponse['IpamResourceCidrs']
 
-    logger.info('Evaluating IPAM resource CIDR Usage > ' + str(ipamUsageThreshold))
+    logger.info('Evaluating IPAM CIDR Resource usage > ' + str(ipamUsageThreshold))
 
     # evaluate resource CIDR vs. threshold
     for resourceCidr in allResourceCidrs:
         # multiply by 100 to get percent
         if ((resourceCidr['IpUsage'] * 100.0) > ipamUsageThreshold):
             myResourceCidrs.append(resourceCidr)
-            logger.info(resourceCidr['ResourceId'] + ' .. has IpUsage > threshold')
+            logger.info(resourceCidr['ResourceId'] + ' ... has IpUsage > threshold')
             # calculate cidr IpAddressTotal and IpAddressAvailable ... tested on IPv4
             # TODO handle IPv6 and arithmetic/string exceptions
             cidr = resourceCidr['ResourceCidr']
@@ -196,25 +196,26 @@ def str2bool(s):
 # IPAM_CLOUDWATCH_NAMESPACE
 # IPAM_CLOUDWATCH_METRIC
 def lambda_handler(event, context):
-    logger.debug('Getting OS environment variables.')
+    logger.info('Getting OS environment variables.')
+    logger.info(os.environ)
 
     # get OS environment variables ... and check-set with good defaults
     try:
-        envIpamUsageThreshold = float(os.environ['IPAM_USAGE_THRESHOLD'])
+        envIpamUsageThreshold = float(os.environ['IpamUsageThreshold'])
     except KeyError:
-        logger.warn('Define Lambda Environment Variable: IPAM_USAGE_THRESHOLD')
+        logger.warn('Define Lambda Environment Variable: IpamUsageThreshold')
         envIpamUsageThreshold = DEFAULT_IPAM_USAGE_THRESHOLD
     
     try:
-        envIpamScopeType = os.environ['IPAM_SCOPE_TYPE']
+        envIpamScopeType = os.environ['IpamScopeType']
     except KeyError:
-        logger.warn('Define Lambda Environment Variable: IPAM_SCOPE_TYPE')
+        logger.warn('Define Lambda Environment Variable: IpamScopeType')
         envIpamScopeType = DEFAULT_IPAM_SCOPE_TYPE
     
     try:
-        envIpamResourceType = os.environ['IPAM_RESOURCE_TYPE']
+        envIpamResourceType = os.environ['IpamResourceType']
     except KeyError:
-        logger.warn('Define Lambda Environment Variable: IPAM_RESOURCE_TYPE')
+        logger.warn('Define Lambda Environment Variable: IpamResourceType')
         envIpamResourceType = DEFAULT_IPAM_RESOURCE_TYPE
 
     # get IPAM resource CIDRS
@@ -239,33 +240,33 @@ def lambda_handler(event, context):
     ipamSnsTopic = None
 
     try:
-        ipamSnsTopic = os.environ['IPAM_SNS_TOPIC']
-        ipamSnsSubject = os.environ['IPAM_SNS_SUBJECT']
+        ipamSnsTopic = os.environ['IpamSnsTopic']
+        ipamSnsSubject = os.environ['IpamSnsTopic']
 
         if (ipamSnsTopic is not None and ipamSnsSubject != ''):
             send_sns_message(ipamSnsTopic, myResponseStatusMessage, ipamSnsSubject)
 
     except KeyError:
-        logger.warn('Define Lambda Environment Variable: IPAM_SNS_TOPIC, IPAM_SNS_SUBJECT')
+        logger.warn('Define Lambda Environment Variable: IpamSnsTopic, IpamSnsTopic')
         # report, warn, and then ignore
 
     # CLOUDWATCH
     ipamCloudWatchNamespace = DEFAULT_IPAM_CLOUDWATCH_NAMESPACE
 
     try:
-        ipamCloudWatchNamespace = os.environ['IPAM_CLOUDWATCH_NAMESPACE']
+        ipamCloudWatchNamespace = os.environ['IpamCloudWatchNamespace']
     except KeyError:
-        logger.debug('Define Lambda Environment Variable: IPAM_CLOUDWATCH_NAMESPACE... using defaults')
+        logger.debug('Define Lambda Environment Variable: IpamCloudWatchNamespace... using defaults')
         # ignore
 
     try:
-        ipamCloudWatcEnabled = str2bool(os.environ['IPAM_CLOUDWATCH_ENABLED'])
+        ipamCloudWatcEnabled = str2bool(os.environ['IpamCloudWatchEnabled'])
     
         if (ipamCloudWatcEnabled):
             send_cloudwatch_metric(myIpamResourceCidrs, ipamCloudWatchNamespace)
 
     except KeyError:
-        logger.warn('Define Lambda Environment Variable: IPAM_CLOUDWATCH_ENABLED, IPAM_CLOUDWATCH_NAMESPACE')
+        logger.warn('Define Lambda Environment Variable: IpamCloudWatchEnabled, IpamCloudWatchNamespace')
         # report, warn, and then ignore
 
     return {

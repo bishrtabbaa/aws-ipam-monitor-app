@@ -19,3 +19,23 @@ These examples provide an introduction to Amazon VPC IPAM and demonstrate how to
 * [VPC IPAM Monitor Solution](aws-ipam-monitor-app.py) can be used to monitor IPAM CIDR resources, evaluate their IP usage, and then take downstream action if the usage exceeds a threshold.  While the core AWS VPC IPAM does have CloudWatch metrics and alarms for IPAM-managed pools of IP addresses, the IPAM does _NOT_ support this feature for non-IPAM managed address pools which is the case for many customers since IPAM is a relatively new service only released in December 2021. Customers regularly need to be proactive about IP address allocation and usage well before these limited resources are exhausted, so a natural approach is to setup SNS alerts or publish metrics based on IP address usage exceeding a user-defined threshold, and then take other downstream actions.  This solution addresses these service gaps for users and customers who have existing VPC resources that are not managed through IPAM address pools.  The solution consists of a set of Python functions that can be run in CLI mode, referenced as part of a larger program or run as a standalone/scheduled Lambda function.  It also integrates with other AWS services such as publishing alerts to SNS topics, sending metrics to CloudWatch, or passing IPAM CIDR information as JSON to other Lambda functions as part of a larger StepFunction workflow.
 
 ![VPC IPAM Monitor Solution Architecture](./assets/aws_ipam_monitor_app_architecture.png)
+
+### Clone Git repo
+git clone https://github.com/bishrtabbaa/aws-ipam-monitor-app
+
+### Build Git repo
+```
+cd aws-ipam-monitor-app
+sam build --use-container --container-env-var-file env.json   
+....
+Build Succeeded
+```
+
+### Test Git repo locally 
+
+Uses default AWS credentials located at ~/.aws/credentials
+```
+sam validate
+....
+sam local invoke --event events/event-lambda.json --env-vars env.json IpamMonitorFunction
+```
