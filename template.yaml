@@ -28,20 +28,21 @@ Resources:
       PackageType: Image
       Architectures:
         - x86_64
+      Timeout: 30
+      Environment:
+        Variables:
+          IpamUsageThreshold: !Ref IpamUsageThreshold
+          IpamSnsTopic: !Ref IpamSnsTopic
+          IpamScopeType: private
+          IpamResourceType: '*'
+          IpamCloudWatchNamespace: CUSTOM/IPAM
+          IpamCloudWatchEnabled: "true"
+      Role: !GetAtt IpamMonitorLambdaExecutionRole.Arn
     Metadata:
       Dockerfile: Dockerfile
       DockerContext: ./src
       DockerTag: python3.9-v1
       MemorySize: 256
-      Environment:
-        Variables:
-          IpamUsageThreshold: !Ref IpamUsageThreshold
-          IpamScopeType: private
-          IpamResourceType: '*'
-          IpamSnsTopic: !Ref IpamSnsTopic
-          IpamCloudWatchNamespace: CUSTOM/IPAM
-          IpamCloudWatchEnabled: true
-      Role: !GetAtt IpamMonitorLambdaExecutionRole.Arn
   #=========================================================
   # EVENT BRIDGE SCHEDULE RULE
   #=========================================================
@@ -76,39 +77,35 @@ Resources:
             Principal:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
-
-  IpamMonitorPolicy:
-    Type: AWS::IAM::Policy
-    Properties:
-      PolicyName: IpamMonitorPolicy
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Action:
-              - "ec2:DescribeIpamScopes"
-              - "ec2:DescribeAddress"
-              - "ec2:DescribeByoipCidrs"
-              - "ec2:DescribeIpv6Pools"
-              - "ec2:DescribeIpv4Pools"
-              - "ec2:DescribeSubnets"
-              - "ec2:DescribeVpcs"
-              - "ec2:DescribeInstances"
-              - "ec2:GetIpamResourceCidrs"
-              - "organizations:DescribeAccount"
-              - "organizations:DescribeOrganization"
-              - "organizations:ListAccounts"
-              - "organizations:ListDelegatedAdministrators"
-              - "logs:CreateLogGroup"
-              - "logs:CreateLogStream"
-              - "logs:PutLogEvents"
-              - "cloudwatch:ListMetrics"
-              - "cloudwatch:GetMetricData"
-              - "cloudwatch:PutMetricData"
-              - "sns:Publish"
-            Resource: '*'
-      Roles:
-        - !Ref IpamMonitorLambdaExecutionRole
+      Policies:
+        - 
+          PolicyName: IpamMonitorPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "ec2:DescribeIpamScopes"
+                  - "ec2:DescribeAddress"
+                  - "ec2:DescribeByoipCidrs"
+                  - "ec2:DescribeIpv6Pools"
+                  - "ec2:DescribeIpv4Pools"
+                  - "ec2:DescribeSubnets"
+                  - "ec2:DescribeVpcs"
+                  - "ec2:DescribeInstances"
+                  - "ec2:GetIpamResourceCidrs"
+                  - "organizations:DescribeAccount"
+                  - "organizations:DescribeOrganization"
+                  - "organizations:ListAccounts"
+                  - "organizations:ListDelegatedAdministrators"
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                  - "cloudwatch:ListMetrics"
+                  - "cloudwatch:GetMetricData"
+                  - "cloudwatch:PutMetricData"
+                  - "sns:Publish"
+                Resource: '*'
 
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
