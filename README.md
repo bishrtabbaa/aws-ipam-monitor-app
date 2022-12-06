@@ -14,9 +14,7 @@ You can use IPAM to do the following:
 
 ## Amazon VPC IPAM Automation Examples
 
-These examples provide an introduction to Amazon VPC IPAM and demonstrate how to integrate it into Lambda, SNS, CloudWatch, and other AWS services.
-
-* [VPC IPAM Monitor Solution](src/aws-ipam-monitor-lib.py) can be used to monitor IPAM CIDR resources, evaluate their IP usage, and then take downstream action if the usage exceeds a threshold.  While the core AWS VPC IPAM does have CloudWatch metrics and alarms for IPAM-managed pools of IP addresses, the IPAM does _NOT_ support this feature for non-IPAM managed address pools which is the case for many customers since IPAM is a relatively new service only released in December 2021. Customers regularly need to be proactive about IP address allocation and usage well before these limited resources are exhausted, so a natural approach is to setup SNS alerts or publish metrics based on IP address usage exceeding a user-defined threshold, and then take other downstream actions.  
+[VPC IPAM Monitor Solution](src/aws-ipam-monitor-lib.py) can be used to monitor IPAM CIDR resources, evaluate their IP usage, and then take downstream action if the usage exceeds a threshold.  While the core AWS VPC IPAM does have CloudWatch metrics and alarms for IPAM-managed pools of IP addresses, the IPAM does _NOT_ support this feature for non-IPAM managed address pools which is the case for many customers since IPAM is a relatively new service only released in December 2021. Customers regularly need to be proactive about IP address allocation and usage well before these limited resources are exhausted, so a natural approach is to setup SNS alerts or publish metrics based on IP address usage exceeding a user-defined threshold, and then take other downstream actions.  
 
 This solution addresses these service gaps for users and customers who have existing VPC resources that are not managed through IPAM address pools.  The solution consists of a set of Python functions deployed as a Docker container attached to a Lambda Function and packaged through the AWS Serverless Application Model (SAM).  The solution can be run as-is as a standalone/scheduled Lambda function.  It also integrates with other AWS services such as publishing alerts to SNS topics, sending metrics to CloudWatch, and passing IPAM CIDR information as JSON to other Lambda functions as part of a larger composite workflow and observability system.
 
@@ -48,7 +46,7 @@ sam local invoke --event events/event-lambda.json --env-vars env.json IpamMonito
 
 ### Deploy SAM app to AWS
 
-Use deployment parameter values for the `region`, `IpamUsageThreshold`, and `IpamSnsTopic` that are appropriate for your environment and use case. It is likely that this solution will reside where you already setup IPAM for your AWS Organization in the management (parent) account.
+Use deployment parameter values for the `region`, `IpamUsageThreshold`, `IpamSnsSubject`, and `IpamSnsTopic` that are appropriate for your environment and use case. It is likely that this solution will reside where you already setup IPAM for your AWS Organization in the management (parent) account.
 ```
 sam deploy --guided --capabilities CAPABILITY_NAMED_IAM --debug
 

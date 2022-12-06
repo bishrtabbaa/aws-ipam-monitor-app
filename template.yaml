@@ -16,6 +16,9 @@ Parameters:
   IpamSnsTopic: 
     Type: String
     Default: ""
+  IpamSnsSubject: 
+    Type: String
+    Default: "[alert] - Amazon VPC IPAM Usage"
   
 # Resources declares the AWS resources that you want to include in the stack
 # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
@@ -33,6 +36,7 @@ Resources:
         Variables:
           IpamUsageThreshold: !Ref IpamUsageThreshold
           IpamSnsTopic: !Ref IpamSnsTopic
+          IpamSnsSubject: !Ref IpamSnsSubject
           IpamScopeType: private
           IpamResourceType: '*'
           IpamCloudWatchNamespace: CUSTOM/IPAM

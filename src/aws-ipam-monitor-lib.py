@@ -45,7 +45,7 @@ DEFAULT_IPAM_CLOUDWATCH_NAMESPACE = "CUSTOM/IPAM"
 DEFAULT_IPAM_CLOUDWATCH_METRIC_PERCENTASSIGNED = "PercentAssigned"
 DEFAULT_IPAM_CLOUDWATCH_METRIC_IPADDRESSAVAILABLE = "IpAddressAvailable"
 DEFAULT_IPAM_CLOUDWATCH_METRIC_IPADDRESSTOTAL = "IpAddressTotal"
-DEFAULT_IPAM_SNS_SUBJECT = 'IPAM Usage Alert'
+DEFAULT_IPAM_SNS_SUBJECT = '[alert] - AWS VPC IPAM Usage'
 DEFAULT_IPAM_RESOURCE_TYPES =[ "vpc", "subnet"]
 
 # LOGGER
@@ -241,7 +241,7 @@ def lambda_handler(event, context):
 
     try:
         ipamSnsTopic = os.environ['IpamSnsTopic']
-        ipamSnsSubject = os.environ['IpamSnsTopic']
+        ipamSnsSubject = os.environ['IpamSnsSubject']
 
         if (ipamSnsTopic is not None and ipamSnsSubject != ''):
             send_sns_message(ipamSnsTopic, myResponseStatusMessage, ipamSnsSubject)
